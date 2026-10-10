@@ -14,20 +14,21 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 
 import requests
+from pymongo import MongoClient
 
 
-
-# Namespace sitemap — с ним работает любой корректный sitemap
 NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
-# Статистика
+
 stats = {
     "files_ok": 0,
     "files_failed": 0,
     "urls_collected": 0,
 }
 
-# Заголовки — представляемся честно
+client = MongoClient("mongodb://localhost:27017/")
+db = client["crawler"]
+
 HEADERS = {
     "User-Agent": "MaiSitemapParser/1.0 (+https://github.com/yourname; contact@example.com)",
     "Accept": "application/xml, text/xml, */*",
@@ -35,13 +36,13 @@ HEADERS = {
 
 
 def fetch(url: str, timeout: int = 30) -> bytes | None:
-    """Скачивает URL, автоматически распаковывая gzip."""
+    """Скачивает URL, распаковывая gzip."""
     try:
         r = requests.get(url, headers=HEADERS, timeout=timeout)
         r.raise_for_status()
         content = r.content
 
-        # некоторые sitemap сжаты gzip, но Content-Encoding может быть не указан
+        
         if content[:2] == b"\x1f\x8b":
             content = gzip.decompress(content)
 
@@ -65,7 +66,7 @@ def parse_sitemap(content: bytes) -> tuple[list[str], list[str]]:
         print(f"  [parse error] {e}", file=sys.stderr)
         return [], []
 
-    tag = root.tag.split("}")[-1]   # 'urlset' или 'sitemapindex'
+    tag = root.tag.split("}")[-1]   
 
     urls = []
     sub_sitemaps = []
@@ -96,9 +97,9 @@ def crawl_sitemap(start_url: str,
     Пишет все найденные страницы в out_file.
     Останавливается при достижении limit.
     """
-    # стек: (url, depth)
+    
     queue = [(start_url, 0)]
-    seen_sitemaps = set()   # чтобы не качать один и тот же .xml дважды
+    seen_sitemaps = set()   
 
     while queue:
         if stats["urls_collected"] >= limit:
@@ -124,10 +125,11 @@ def crawl_sitemap(start_url: str,
         stats["files_ok"] += 1
         urls, sub_sitemaps = parse_sitemap(content)
 
-        # обычные URL — пишем сразу
+        
         for page_url in urls:
             if stats["urls_collected"] >= limit:
                 return
+            db.documents.insert_one({"url": page_url})
             out_file.write(page_url + "\n")
             stats["urls_collected"] += 1
 
@@ -138,19 +140,19 @@ def crawl_sitemap(start_url: str,
         print(f"  страниц: {len(urls)}, вложенных sitemap: {len(sub_sitemaps)}, "
               f"всего собрано: {stats['urls_collected']}")
 
-        # вложенные sitemap — в очередь
+        
         for sub in sub_sitemaps:
             if sub not in seen_sitemaps:
                 queue.append((sub, depth + 1))
 
-        time.sleep(delay)   # вежливость
+        time.sleep(delay)   
 
 
 def main():
     if len(sys.argv) < 2:
         print("Usage: python <programm> <input.yaml> ")
         print("Example:")
-        print("  python response_bot.py config.yaml")   #python sitemap_parser.py https://ria.ru/sitemap_article_index.xml urls.txt 1000000
+        print("  python response_bot.py config.yaml")   
         sys.exit(1)
 
     file = sys.argv[1]
@@ -172,6 +174,10 @@ def main():
     print()
 
     t0 = time.time()
+    
+    
+    
+
 
     with open(out_path, "w", encoding="utf-8") as out:
         crawl_sitemap(start_url, out, limit=limit)
