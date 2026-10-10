@@ -2,3 +2,4 @@
 *.txt
 config.yaml
 !requirenments.txt
+*.pkl

@@ -1,0 +1,11 @@
+db:
+ password:pass
+ login:login
+logic:
+ delay: 1.0
+ domen0: https://pikuco.ru/tests/
+ target0: https://pikuco.ru/tests/
+ countcheck1: data-faceplate-tracking-context
+
+ target2: https://www.cybersport.ru/search?search=dota%20
+ pagetag2: link_CocWY
