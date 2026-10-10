@@ -3,3 +3,5 @@
 config.yaml
 !requirenments.txt
 *.pkl
+*.log
+*.html
