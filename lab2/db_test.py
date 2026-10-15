@@ -45,7 +45,7 @@ def IsNeedUpdate(last_mod, doc):
         return False
         
     else:
-        print(f"no datatime on {doc["url"]} time {doc["time"]}")
+        print(f"no datatime on {doc["url"]}")
         return False
     
     
@@ -78,6 +78,7 @@ def main():
     db2 = client["crawler"]  
     
     start_point = int(yam["logic"]["start_with"])
+    end_point = int(yam["logic"]["end_with"])
     try:
         while(True):
             counter = 0
@@ -98,7 +99,9 @@ def main():
         
                 if(counter < start_point):
                     continue
-                    
+                if(counter > end_point):
+                    print("End point reached")
+                    return 0
 
                 
                 if counter % 1000 == 0:
