@@ -10,6 +10,7 @@ logic:
  target1: https://ria.ru/sitemap_article_index.xml
  limit1: 1000000
  output_file1: part_output.txt
- db_bot: stop
- start_with: 300000
+ db_bot: go
+ start_with: 0
+ end_with: 10000
  check_interval: 100

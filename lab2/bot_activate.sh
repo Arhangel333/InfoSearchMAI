@@ -10,4 +10,11 @@ docker run -d \
 docker run -d crawler-mongo
 
 docker exec -it crawler-mongo sh
-  
+
+
+python3 db_load_html.py 2config.yaml &
+
+ 
+ 
+ 
+ 

@@ -82,6 +82,15 @@ def main():
     try:
         while(True):
             counter = 0
+            
+            """ doc = db.documents.find_one_and_update(
+    {"content": {"$exists": False}},       # фильтр: нет content
+    {"$set": {
+        "claimed_by": WORKER_ID,
+        "claimed_at": datetime.now(timezone.utc),
+    }},
+    return_document=True,
+) """
             for doc in db2.documents.find({}, {"url": 1, "time": 1, "LAST_MOD": 1}):      #db.documents.find({"html": {"$exists": False}})
                 
                 
