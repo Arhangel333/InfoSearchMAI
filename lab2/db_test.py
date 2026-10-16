@@ -72,7 +72,7 @@ def main():
     db = client["crawler"]
     """for docs in db.documents.find():
         print(docs) """
-    docs = list(db.documents.find())
+    #docs = list(db.documents.find()) #обязательно удалить эту шляпу ебаную которая как раз                                                                                 ...ебала мне RAM в 4 часа ночи
     
     #db.createtable("test")
     db2 = client["crawler"]  
@@ -82,7 +82,7 @@ def main():
     try:
         while(True):
             counter = 0
-            for doc in db2.documents.find({}, {"url": 1, "time": 1, "LAST_MOD": 1}):
+            for doc in db2.documents.find({}, {"url": 1, "time": 1, "LAST_MOD": 1}):      #db.documents.find({"html": {"$exists": False}})
                 
                 
                 print(f"\rПрогресс: {counter}", end="", flush=True)
