@@ -82,7 +82,7 @@ def main():
     try:
         while(True):
             counter = 0
-            for doc in db2.documents.find():
+            for doc in db2.documents.find({}, {"url": 1, "time": 1, "LAST_MOD": 1}):
                 
                 
                 print(f"\rПрогресс: {counter}", end="", flush=True)
