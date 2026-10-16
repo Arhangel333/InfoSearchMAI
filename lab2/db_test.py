@@ -26,7 +26,7 @@ def IsNeedUpdate(last_mod, doc):
         lm_ts = parsedate_to_datetime(last_mod)                     #time from site
 
         if old_ts is None:
-            print("Страницу надо скачать")
+            print("Страницу надо скачать>>>")
             return True
         else:
             try:
@@ -119,13 +119,11 @@ def main():
                     if 'time' in doc:
                         db2.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "content": content}})
                     else:#если впервые заносим в таблицу html
-                        db2.documents.update_one({"_id": doc["_id"]}, {"$set": {"time": str(now),LAST_MOD: str(now), "content": content}})
-                        
-                
+                        db2.documents.update_one({"_id": doc["_id"]}, {"$set": {"time": str(now), LAST_MOD: str(now), "content": content}})
             
             
                 myprint(doc["url"])
-            time.sleep(3)
+            #time.sleep(3)
     except KeyboardInterrupt:
         print(f"Текущая позиция:{counter} Ctrl+C exit")
         return 0

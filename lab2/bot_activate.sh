@@ -7,5 +7,7 @@ docker run -d \
   -v mongo_data:/data/db \
   mongo:7
 
+docker run -d crawler-mongo
 
+docker exec -it crawler-mongo sh
   

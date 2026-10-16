@@ -1,0 +1,15 @@
+db:
+ password: pass
+ login: login
+ client: "mongodb://localhost:27017/"
+logic:
+ delay: 1.0
+ countcheck1: data-faceplate-tracking-context
+ scroll_to_the_end_true: 1
+ domen1: https://ria.ru
+ target1: https://ria.ru/sitemap_article_index.xml
+ limit1: 1000000
+ output_file1: part_output.txt
+ db_bot: stop
+ start_with: 300000
+ check_interval: 100
