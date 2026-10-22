@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium import webdriver
 from bs4 import BeautifulSoup
+from pymongo import MongoClient
 
 options = Options()
 #options.add_argument("--headless=new")   # без окна
@@ -32,10 +33,10 @@ def myprint(text):
     if(v):
         print(text)
         
-def same_host(url: str, domain: str) -> bool:
-    myprint(f"check -----> {domain} in {url}")
-    nowww = domain.replace("www.", "")
-    return domain in url or nowww in url
+def same_host(url: str, domen: str) -> bool:
+    myprint(f"check -----> {domen} in {url}")
+    nowww = domen.replace("www.", "")
+    return domen in url or nowww in url
 
 if(len(sys.argv)<=1):
     print("Usage: <programm> <input.yaml> ")
@@ -56,11 +57,12 @@ myprint(file)
 
 def scroll_and_collect(
     driver,
+    db: str,
     link_selector: str = "a[href]",
     step_px: int = 600,          # сколько пикселей за раз
     pause: float = 1.0,          # пауза между скроллами
     max_steps: int = 100,        # предохранитель от бесконечности
-    domain: str = "",            # для фильтрации чужих ссылок
+    domen: str = "",            # для фильтрации чужих ссылок
     max_urls: int = 1000000,         # не больше 1 000 000 на финальном парсе
     max_scroll: int = 0,
 ) -> list[str]:
@@ -107,12 +109,13 @@ def scroll_and_collect(
                 myprint("href contains trash")
                 continue
             # фильтр по домену (если задан)
-            myprint(domain)
-            if same_host(href, domain):
+            myprint(domen)
+            if same_host(href, domen):
                 if href not in collected:
                     collected.add(href)
                     with open("part_output.txt", "a") as pf:
                         pf.write(href + "\n")
+                        db.documents.insert_one({"url": href, "domen": domen})
                     new_count += 1
                 else:
                     myprint(f"href is in the collection already ({href})")
@@ -146,7 +149,7 @@ def scroll_and_collect(
             for el in driver.find_elements(By.CSS_SELECTOR, link_selector):
                 href = el.get_attribute("href")
                 if href and not href.startswith(("javascript:", "mailto:", "tel:", "#")):
-                    if not domain or same_host(href, domain):
+                    if not domen or same_host(href, domen):
                         collected.add(href)
             break
     else:
@@ -159,8 +162,8 @@ with open(file, "r") as f:
     yam = yaml.safe_load(f)
     myprint(yam)
     
-    url0, url2 = yam["logic"]["target0"], yam["logic"]["target2"]
-    myprint(f"{url0}, {url2}")
+    url0 = yam["logic"]["target"]
+    myprint(f"{url0}")
     
     headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36"
@@ -168,14 +171,18 @@ with open(file, "r") as f:
      
     
     try:
-        driver.get(yam["logic"]["target0"])
+        db_client = yam["db"]["client"]
+        client = MongoClient(db_client)
+        db = client["crawler"]
+        driver.get(yam["logic"]["target"])
         chunk = scroll_and_collect(
             driver,
+            db, 
             link_selector=yam["logic"]["el_signature"],
             step_px=600,          # сколько пикселей за раз
             pause= 1.0,          # пауза между скроллами
             max_steps= 10000000,        # предохранитель от бесконечности
-            domain= yam["logic"]["domen0"],            # для фильтрации чужих ссылок
+            domen= yam["logic"]["domen"],            # для фильтрации чужих ссылок
             max_urls=1000001,
             max_scroll = yam["logic"]["scroll_to_the_end_true"],
         )
@@ -187,24 +194,5 @@ with open(file, "r") as f:
         
     finally:
         driver.quit()
-        
-"""         
-        
-        x = "0"
-        while(x=="0"):
-            html = driver.page_source   # ← готовый HTML после JS
-            myprint(html)
-            x = input(x)
-            
-            soup = BeautifulSoup(html, 'lxml')
-            pagestag = soup.find_all(attrs={"class": yam["logic"]["pagetag2"]})
-        
-            for i in pagestag:
-                maxpage = i
-                if(i['href'][0] == '/'):
-                    i['href'] = yam["logic"]["domen1"] + i['href']
-                    myprint(i['href'])
-
-"""
 
 
