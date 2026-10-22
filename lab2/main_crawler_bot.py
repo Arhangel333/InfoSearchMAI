@@ -17,6 +17,8 @@ import requests
 from pymongo import MongoClient
 
 
+truework = 0
+
 NS = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
 
@@ -26,8 +28,7 @@ stats = {
     "urls_collected": 0,
 }
 
-client = MongoClient("mongodb://localhost:27017/")
-db = client["crawler"]
+
 
 HEADERS = {
     "User-Agent": "MaiSitemapParser/1.0 (+https://github.com/yourname; contact@example.com)",
@@ -89,6 +90,7 @@ def parse_sitemap(content: bytes) -> tuple[list[str], list[str]]:
 
 def crawl_sitemap(start_url: str,
                   out_file,
+                  db,
                   limit: int = 1_000_000,
                   delay: float = 0.3,
                   max_depth: int = 10) -> None:
@@ -129,7 +131,8 @@ def crawl_sitemap(start_url: str,
         for page_url in urls:
             if stats["urls_collected"] >= limit:
                 return
-            db.documents.insert_one({"url": page_url})
+            if truework:
+                db.documents.insert_one({"url": page_url})
             out_file.write(page_url + "\n")
             stats["urls_collected"] += 1
 
@@ -159,9 +162,12 @@ def main():
 
     with open(file, "r") as f:
         yam = yaml.safe_load(f)
+        
+    client = MongoClient(yam["db"]["client"])
+    db = client["crawler"]
 
-    domen = yam["logic"]["domen1"]
-    start_url = yam["logic"]["target1"]
+    domen = yam["logic"]["domen"]
+    start_url = yam["logic"]["target"]
     out_path = yam["logic"]["output_file1"]
     try:
         limit = int(yam["logic"]["limit1"])
@@ -180,7 +186,7 @@ def main():
 
 
     with open(out_path, "w", encoding="utf-8") as out:
-        crawl_sitemap(start_url, out, limit=limit)
+        crawl_sitemap(start_url, out, db, limit=limit)
 
     elapsed = time.time() - t0
     print()
