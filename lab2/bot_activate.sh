@@ -3,6 +3,7 @@
 
 #source ../venv/bin/activate 
 #python3 search_bot.py config.yaml
+#python3 main_crawler_bot.py 2config.yaml
 
 python3 main_crawler_bot.py config.yaml
 
