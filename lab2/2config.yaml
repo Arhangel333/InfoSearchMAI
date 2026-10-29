@@ -3,11 +3,15 @@ db:
  login: login
  client: "mongodb://localhost:27017/"
 logic:
+ mode: selenium #or selenium
  delay: 1.0
  countcheck1: data-faceplate-tracking-context
  scroll_to_the_end_true: 1
- domen: https://ria.ru
- target: https://ria.ru/sitemap_article_index.xml
+ el_signature: "a[href]"
+ domen: https://www.reddit.com  #210
+ target: https://www.reddit.com/search/?q=dota&cId=8afca0a8-8e66-409d-a3a8-e5d219f56654&iId=5fc13795-8e88-4a6a-a9a1-2b276bbae7ae
+ #domen: https://ria.ru
+ #target: https://ria.ru/sitemap_article_index.xml
  limit1: 1000000
  output_file1: part_output.txt
  db_bot: stop
