@@ -25,7 +25,7 @@ import gzip
 import io
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
-
+from pprint import pprint
 import requests
 from pymongo import MongoClient
 
@@ -244,8 +244,9 @@ def crawl_sitemap(start_url: str,
     Пишет все найденные страницы в out_file.
     Останавливается при достижении limit.
     """
-    
-    queue = [(start_url, 0)]
+    queue = []
+    for item in start_url:
+        queue.append((item, 0))
     seen_sitemaps = set()   
 
     while queue:
@@ -275,9 +276,11 @@ def crawl_sitemap(start_url: str,
         
         for page_url in urls:
             if stats["urls_collected"] >= limit:
+                print(f"Собрано страниц больше {limit}")
                 return
-            if truework:
-                db.documents.insert_one({"url": page_url})
+            if not db.documents.find_one({"url": page_url}):
+                if truework:
+                    db.documents.insert_one({"url": page_url})
             else:
                 myprint(page_url + "\n")
                 out_file.write(page_url + "\n")
@@ -296,8 +299,106 @@ def crawl_sitemap(start_url: str,
                 queue.append((sub, depth + 1))
 
         time.sleep(delay)   
+    else:
+        print("End of sitemap")    
+    print("End of sitemap return")
+    return
 
 
+def parse_robots_directives(domen):
+    response = requests.get(domen + "/robots.txt")
+    if response.status_code == 200:
+        myprint("страница есть")
+    elif response.status_code == 404:
+        myprint("страницы нет")
+    elif response.status_code == 403:
+        myprint("доступ запрещён")
+    else:
+        print(f"другой статус: {response.status_code}")
+        exit(0)
+    response = response.text.split('\n')
+    robots_json = {}
+    for line in response:
+        line = line.strip()
+        if ":" not in line:
+            continue
+        key, val = line.split(':', 1)
+        key = key.strip().lower()
+        val = val.strip().lower()
+        #print(key, val)
+        if key.lower() == 'user-agent' or key.lower() == 'sitemap':
+            if key.lower() == 'sitemap':
+                robots_json.setdefault("__global__", {})
+                current_dict = robots_json["__global__"]
+                current_dict.setdefault(key, set()).add(val)
+                continue
+            robots_json.setdefault(key, {})
+            robots_json[key].setdefault(val, {})   # ← агент внутри
+            current_dict = robots_json["user-agent"][val]
+            #current_dict.setdefault(val, set()).add(val)
+            #current_dict = robots_json[val]
+            continue
+        current_dict.setdefault(key, set()).add(val)
+    
+
+    #pprint(robots_json)
+        
+    return robots_json
+
+
+
+def get_robots_args(robots_json, my_agent):
+    if robots_json.get("__global__"):
+        if robots_json["__global__"].get("sitemap"):
+            myprint(robots_json["__global__"]["sitemap"])
+        else:
+            print("Error no sitemap in robots.txt", file=sys.stderr)
+            if truework:
+                exit(0)
+    else:
+        print("Error no __global__ in robots.txt", file=sys.stderr)
+        if truework:
+            exit(0)
+    
+    if not robots_json["user-agent"].get(my_agent):
+        my_agent = '*'
+    if not robots_json["user-agent"].get(my_agent):
+        print("Error no user-agents in robots.txt", file=sys.stderr)
+        if truework:
+            exit(0)
+        
+    
+    try:
+        allow = robots_json["user-agent"][my_agent]["allow"]
+    except KeyError as e:
+        myprint(f"Exception: KeyError {e}")
+        allow = "/"     
+    try:
+        disallow = robots_json["user-agent"][my_agent]["disallow"]
+    except KeyError as e:
+        myprint(f"Exception: KeyError {e}")
+        disallow = None
+    try:
+        craw_delay = robots_json["user-agent"][my_agent]["crawl-delay"]
+    except KeyError as e:
+        myprint(f"Exception: KeyError {e}")
+        craw_delay = 0
+    try:
+        sitemap = robots_json["__global__"]["sitemap"]
+    except KeyError as e:
+        myprint(f"Exception: KeyError {e}")
+        sitemap = None
+                
+    return craw_delay, sitemap, allow, disallow
+    
+    
+    
+    
+    
+    
+    
+    
+    
 def main():
     if len(sys.argv) < 2:
         print("Usage: python <programm> <input.yaml> ")
@@ -317,7 +418,12 @@ def main():
     if yam["logic"]["mode"] == "sitemap":
         
         domen = yam["logic"]["domen"]
-        start_url = yam["logic"]["target"]
+        robots_json = parse_robots_directives(domen)       
+        craw_delay, sitemap, allow, disallow = get_robots_args(robots_json, HEADERS["User-Agent"])
+        
+        if craw_delay == 0:
+            craw_delay = 0.3
+        start_url = sitemap
         out_path = yam["logic"]["output_file1"]
         try:
             limit = int(yam["logic"]["limit1"])
@@ -336,7 +442,7 @@ def main():
 
 
         with open(out_path, "w", encoding="utf-8") as out:
-            crawl_sitemap(start_url, out, db, limit=limit)
+            crawl_sitemap(start_url, out, db, limit=limit, delay=craw_delay)
 
         elapsed = time.time() - t0
         print()

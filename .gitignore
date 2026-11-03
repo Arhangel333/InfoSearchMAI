@@ -6,3 +6,5 @@ config.yaml
 *.log
 *.html
 useless
+шаблоны
+__pycache__/
