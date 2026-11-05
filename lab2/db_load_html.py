@@ -91,7 +91,7 @@ def GetTextFromHTML(doc):
             if logs:
                 with open("test_text_from_html.txt", "a") as f:
                     f.write("\n\n")
-                    f.write(f"{time.now()}\n\n")
+                    f.write(f"{datetime.now()}\n\n")
                     f.write(url)
                     f.write(":\n")
                     f.write(text)
