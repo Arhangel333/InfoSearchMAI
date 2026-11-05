@@ -17,6 +17,7 @@ TERMINAL_LOGS = f"{pid}terminal_log.txt"
 v = 0
 true_work = 1
 logs = 1
+terminal_loging = 0
 
 
 def myprint(text):
@@ -57,11 +58,12 @@ def IsNeedUpdate(last_mod, doc):
     
 def GetContent(doc):
     try:
+        url = doc["url"]
         r = requests.get(doc["url"], timeout=5)
         # ПРОВЕРКА КОДА ОТВЕТА
         if r.status_code != 200:
             with open(TERMINAL_LOGS, "a") as f:
-                f.write(f"Ошибка {r.status_code} для {url} время: {datetime.now() - now}\n")
+                f.write(f"Ошибка {r.status_code} для {url} время: {datetime.now()}\n")
     except Exception as e:
         print(f"ошибка: {e}")
         return None 
@@ -116,12 +118,12 @@ def GetTextFromHTML(doc):
     
             
             
-    return text, char_count, word_count, success
+    return html, text, char_count, word_count, success
     
     
-def PasteTextToDB(db, doc, text, char_count, word_count, now):
+def PasteTextToDB(db, doc, html, text, char_count, word_count, now):
     if true_work:
-        return db.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "text": text, "char_count": char_count, "word_count": word_count}})
+        return db.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "content": html, "text": text, "char_count": char_count, "word_count": word_count}})
     else:
         return 0
     
@@ -185,14 +187,14 @@ def main():
                 print(f"None content on url: {doc["url"]}")
             else:
                 
-                text, char_count, word_count, success = GetTextFromHTML(doc)
+                html, text, char_count, word_count, success = GetTextFromHTML(doc)
                 if success:
                     success_count += 1
                 else:
                     extract_text_error +=1
                     continue
                 
-                db_paste_success = PasteTextToDB(db, doc, text, char_count, word_count, now)
+                db_paste_success = PasteTextToDB(db, doc, html, text, char_count, word_count, now)
                 if not db_paste_success:
                     db_errors +=1
                     myprint("Error on writing to database")
@@ -203,6 +205,9 @@ def main():
             with open(TERMINAL_LOGS, "a") as f:
                 f.write(f"\n{pid}: Прогресс: {counter} время: {datetime.now() - now}\n")         
             #print(f"{pid}: Прогресс: {counter}\n", end="", flush=True)
+            
+            if not terminal_loging:
+                print(f"{pid}: Прогресс: {counter} время: {datetime.now() - now}")  
             
             counter+=1
             if counter % yam["logic"]["check_interval"] == 0:
