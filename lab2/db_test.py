@@ -11,7 +11,7 @@ import time
 
 LAST_MOD = "last_modified_ts"
 DOCUMENT_COUNT_LIMIT = 1000000
-v = 0
+v = 1
 logs = 1
 true_work = 1
 
@@ -72,7 +72,11 @@ def UpdateScript(doc, db2, now):
 
 
 def GetTextFromHTML(doc):
-    
+    char_count = 0
+    word_count = 0
+                
+                
+                
     url = doc.get('url')
     myprint(url)
     content_html = doc.get('content')
@@ -150,9 +154,24 @@ def main():
     success_count = 0
     extract_text_error = 0
     continue_work = 1
+    last_count_db = 0
     try:
         while(continue_work):
-            counter = 0#счетчик обработки
+            counter = 0 #счетчик обработки
+            
+            
+            
+            myprint("Starting check count in database")
+            db_count_found = db.documents.count_documents({"content": {"$exists": True}, "text": {"$exists": False}})
+            if db_count_found == 0 or last_count_db == db_count_found: #Либо ничего не нашли либо нашли столько же сколько в прошлый раз тогда выходим
+                print(f"Exiting: Last count: {last_count_db}, new count: {db_count_found}\n")
+                break
+            
+            
+            print(f"Last count: {last_count_db}, new count: {db_count_found}\n")
+            last_count_db = db_count_found
+            
+            
             myprint("Starting find")
             for doc in db.documents.find({"content": {"$exists": True}, "text": {"$exists": False}}, {"url": 1, "content": 1}):      #db.documents.find({"html": {"$exists": False}})
                 
@@ -184,6 +203,7 @@ def main():
                     success_count += 1
                 else:
                     extract_text_error +=1
+                    continue
             
             
                 PasteTextToDB(db, doc, text, char_count, word_count, now)
