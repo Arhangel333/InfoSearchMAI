@@ -6,12 +6,15 @@ import datetime
 import requests
 from email.utils import format_datetime, parsedate_to_datetime
 from datetime import datetime, timezone
-
+import trafilatura
+import time
 
 LAST_MOD = "last_modified_ts"
-v = 1
-#db.documents.updateOne( {url: 'https://ria.ru'}, {$set: { time:'_now_', domen:'_domen_', content: '_html_'}})
-#db.documents.updateOne( {url: 'https://ria.ru'}, {{ time:'_now_', last_update:'_time_'}})
+TERMINAL_LOGS = "terminal_log.txt"
+v = 0
+true_work = 1
+logs = 1
+
 
 def myprint(text):
     if(v):
@@ -52,12 +55,72 @@ def IsNeedUpdate(last_mod, doc):
 def GetContent(doc):
     try:
         r = requests.get(doc["url"], timeout=5)
+        # ПРОВЕРКА КОДА ОТВЕТА
+        if r.status_code != 200:
+            with open(TERMINAL_LOGS, "a") as f:
+                f.write(f"Ошибка {r.status_code} для {url} время: {datetime.now() - now}\n")
     except Exception as e:
         print(f"ошибка: {e}")
         return None 
     content = r.text
     return content
+
+
+
+def GetTextFromHTML(doc):
+    char_count = 0
+    word_count = 0
+                
+                
+                
+    url = doc.get('url')
+    myprint(url)
     
+
+    
+    html = GetContent(doc)           
+    text = trafilatura.extract(html)
+    
+    if text:
+            # Размер в символах (с пробелами)
+            char_count = len(text)
+            # Количество слов
+            word_count = len(text.split())
+            success = 1
+            
+            if logs:
+                with open("test_text_from_html.txt", "a") as f:
+                    f.write("\n\n")
+                    f.write(f"{time.now()}\n\n")
+                    f.write(url)
+                    f.write(":\n")
+                    f.write(text)
+                    f.write(f"\nСимволов: {char_count}")
+                    f.write(f"\nСлов: {word_count}")
+                
+    else:
+        success = 0       
+        if logs:
+            with open("test_text_from_html.txt", "a") as f:
+                f.write(url)
+                f.write(":\n")
+                
+                f.write("Не удалось извлечь текст")
+    
+    
+    
+    
+    
+            
+            
+    return text, char_count, word_count, success
+    
+    
+def PasteTextToDB(db, doc, text, char_count, word_count, now):
+    if true_work:
+        return db.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "text": text, "char_count": char_count, "word_count": word_count}})
+    else:
+        return 0
     
     
     
@@ -79,11 +142,10 @@ def main():
     
     client = MongoClient(db_client)
     db = client["crawler"]
-    """for docs in db.documents.find():
-        print(docs) """                                                                             ...ебала мне RAM в 4 часа ночи
+                                                          
     
     #db.createtable("test")
-    db2 = client["crawler"]  
+    db = client["crawler"]  
     
     pid = os.getpid()
     
@@ -91,10 +153,17 @@ def main():
     end_point = int(yam["logic"]["end_with"])
     try:
         counter = 0
+        db_success = 0
+        db_errors = 0
+        success_count = 0
+        extract_text_error = 0
+        continue_work = 1
+        last_count_db = 0
+        myprint("starting cycle")
         while(True):
             
             now = datetime.now()
-            doc = db2.documents.find_one_and_update(
+            doc = db.documents.find_one_and_update(
                 {"content": {"$exists": False}, 
                  "time": {"$exists": False}},       # фильтр: нет content
                 {"$set": {
@@ -113,10 +182,26 @@ def main():
             if content is None:
                 print(f"None content on url: {doc["url"]}")
             else:
-                db2.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "content": content}})
+                
+                text, char_count, word_count, success = GetTextFromHTML(doc)
+                if success:
+                    success_count += 1
+                else:
+                    extract_text_error +=1
+                    continue
+                
+                db_paste_success = PasteTextToDB(db, doc, text, char_count, word_count, now)
+                if not db_paste_success:
+                    db_errors +=1
+                    myprint("Error on writing to database")
+                else:
+                    db_success +=1
+                #db.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "text": text}})
         
-                       
-            print(f"\r{pid}: Прогресс: {counter}", end="", flush=True)
+            with open(TERMINAL_LOGS, "a") as f:
+                f.write(f"\n{pid}: Прогресс: {counter} время: {datetime.now() - now}\n")         
+            #print(f"{pid}: Прогресс: {counter}\n", end="", flush=True)
+            
             counter+=1
             if counter % yam["logic"]["check_interval"] == 0:
                 with open(file, "r") as fl:
@@ -142,10 +227,12 @@ def main():
             
             
             
-        
+            time.sleep(1)
             myprint(doc["url"])
     except KeyboardInterrupt:
         print(f"Текущая позиция:{counter} Ctrl+C exit")
+        print(f"Successfully extracted: {success_count}, Extract errors: {extract_text_error}\n")
+        print(f"Successfully wrote: {db_success}, Write on db errors: {db_errors}\n")
         return 0
             
         
