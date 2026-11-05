@@ -2,6 +2,7 @@ db:
  password: pass
  login: login
  client: "mongodb://localhost:27017/"
+ collection: crawler
 logic:
  mode: selenium #or selenium
  delay: 1.0

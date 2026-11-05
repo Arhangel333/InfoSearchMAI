@@ -5,12 +5,15 @@ import datetime
 import requests
 from email.utils import format_datetime, parsedate_to_datetime
 from datetime import datetime, timezone
+import trafilatura
+import time
 
 
 LAST_MOD = "last_modified_ts"
+DOCUMENT_COUNT_LIMIT = 1000000
 v = 0
-#db.documents.updateOne( {url: 'https://ria.ru'}, {$set: { time:'_now_', domen:'_domen_', content: '_html_'}})
-#db.documents.updateOne( {url: 'https://ria.ru'}, {{ time:'_now_', last_update:'_time_'}})
+logs = 1
+true_work = 1
 
 def myprint(text):
     if(v):
@@ -49,6 +52,74 @@ def IsNeedUpdate(last_mod, doc):
         return False
     
     
+#это было для обновленния
+def UpdateScript(doc, db2, now):
+    try:
+        r = requests.get(doc["url"], timeout=5)
+    except Exception as e:
+        print(f"ошибка: {e}")
+        #continue                 <<<<================================= это не забыть
+    content = r.text
+    if(IsNeedUpdate(r.headers.get("last-modified"), doc)): #если было обновлено после даты в документе то подгружаем новый текст страницы
+        if 'time' in doc:
+            db2.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "content": content}})
+        else:#если впервые заносим в таблицу html
+            db2.documents.update_one({"_id": doc["_id"]}, {"$set": {"time": str(now), LAST_MOD: str(now), "content": content}})
+            
+    return
+
+
+
+
+def GetTextFromHTML(doc):
+    
+    url = doc.get('url')
+    myprint(url)
+    content_html = doc.get('content')
+
+    
+    html = content_html            
+    text = trafilatura.extract(html)
+    
+    if text:
+            # Размер в символах (с пробелами)
+            char_count = len(text)
+            # Количество слов
+            word_count = len(text.split())
+            success = 1
+            
+            if logs:
+                with open("test_text_from_html.txt", "a") as f:
+                    f.write("\n\n")
+                    f.write(url)
+                    f.write(":\n")
+                    f.write(text)
+                    f.write(f"\nСимволов: {char_count}")
+                    f.write(f"\nСлов: {word_count}")
+                
+    else:
+        success = 0       
+        if logs:
+            with open("test_text_from_html.txt", "a") as f:
+                f.write(url)
+                f.write(":\n")
+                
+                f.write("Не удалось извлечь текст")
+    
+    
+    
+    
+    
+            
+            
+    return text, char_count, word_count, success
+    
+    
+    
+def PasteTextToDB(db, doc, text, char_count, word_count, now):
+    if true_work:
+        return db.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "text": text, "char_count": char_count, "word_count": word_count}})
+    
     
     
     
@@ -70,70 +141,67 @@ def main():
     
     client = MongoClient(db_client)
     db = client["crawler"]
-    """for docs in db.documents.find():
-        print(docs) """
-    #docs = list(db.documents.find()) #обязательно удалить эту шляпу ебаную которая как раз                                                                                 ...ебала мне RAM в 4 часа ночи
-    
-    #db.createtable("test")
-    db2 = client["crawler"]  
+    collection = db[yam["db"]["collection"]]
+ 
     
     start_point = int(yam["logic"]["start_with"])
     end_point = int(yam["logic"]["end_with"])
+    
+    success_count = 0
+    extract_text_error = 0
+    continue_work = 1
     try:
-        while(True):
-            counter = 0
-            
-            """ doc = db.documents.find_one_and_update(
-    {"content": {"$exists": False}},       # фильтр: нет content
-    {"$set": {
-        "claimed_by": WORKER_ID,
-        "claimed_at": datetime.now(timezone.utc),
-    }},
-    return_document=True,
-) """
-            for doc in db2.documents.find({}, {"url": 1, "time": 1, "LAST_MOD": 1}):      #db.documents.find({"html": {"$exists": False}})
+        while(continue_work):
+            counter = 0#счетчик обработки
+            myprint("Starting find")
+            for doc in db.documents.find({"content": {"$exists": True}, "text": {"$exists": False}}, {"url": 1, "content": 1}):      #db.documents.find({"html": {"$exists": False}})
                 
                 
                 print(f"\rПрогресс: {counter}", end="", flush=True)
                 counter+=1
-                """ if counter % yam["logic"]["check_interval"] == 0:
-                    with open(file, "r") as fl:
-                        try:
-                            yam = yaml.safe_load(fl)
-                            if yam["logic"]["db_bot"] == "stop":
-                                print(f"Получено прерывание из {file} Остановились на {counter}")
-                                return counter
-                        except (FileNotFoundError, yaml.YAMLError) as e:
-                            print(f"не могу прочитать конфиг: {e}") """
-        
                 if(counter < start_point):
                     continue
-                if(counter > end_point):
-                    print("End point reached")
-                    return 0
-
+                if(counter > DOCUMENT_COUNT_LIMIT):
+                    print("DOCUMENT COUNT LIMIT reached")
+                    continue_work = 0
+                    break
+                
                 
                 if counter % 1000 == 0:
                     print(f"Текущая позиция:{counter} продолжаем обкачку")
                     
                     
                 now = datetime.now()
-                try:
-                    r = requests.get(doc["url"], timeout=5)
-                except Exception as e:
-                    print(f"ошибка: {e}")
-                    continue 
-                content = r.text
-                if(IsNeedUpdate(r.headers.get("last-modified"), doc)): #если было обновлено после даты в документе то подгружаем новый текст страницы
-                    if 'time' in doc:
-                        db2.documents.update_one({"_id": doc["_id"]}, {"$set": {LAST_MOD: str(now), "content": content}})
-                    else:#если впервые заносим в таблицу html
-                        db2.documents.update_one({"_id": doc["_id"]}, {"$set": {"time": str(now), LAST_MOD: str(now), "content": content}})
+                
+                
+                
+                
+                
+                
+                text, char_count, word_count, success = GetTextFromHTML(doc)
+                 
+                if success:
+                    success_count += 1
+                else:
+                    extract_text_error +=1
+            
+            
+                PasteTextToDB(db, doc, text, char_count, word_count, now)
+            
+            
+            
+            
+            
+            
+            
             
             
                 myprint(doc["url"])
-            #time.sleep(3)
+            time.sleep(1)
+        
+        print(f"Successfully extracted: {success_count}, Extract errors: {extract_text_error}\n")
     except KeyboardInterrupt:
+        print(f"Successfully extracted: {success_count}, Extract errors: {extract_text_error}\n")
         print(f"Текущая позиция:{counter} Ctrl+C exit")
         return 0
             

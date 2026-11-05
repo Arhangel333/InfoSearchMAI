@@ -80,8 +80,7 @@ def main():
     client = MongoClient(db_client)
     db = client["crawler"]
     """for docs in db.documents.find():
-        print(docs) """
-    #docs = list(db.documents.find()) #обязательно удалить эту шляпу ебаную которая как раз                                                                                 ...ебала мне RAM в 4 часа ночи
+        print(docs) """                                                                             ...ебала мне RAM в 4 часа ночи
     
     #db.createtable("test")
     db2 = client["crawler"]  
