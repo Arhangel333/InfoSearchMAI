@@ -9,8 +9,11 @@ from datetime import datetime, timezone
 import trafilatura
 import time
 
+
+
+pid = os.getpid()
 LAST_MOD = "last_modified_ts"
-TERMINAL_LOGS = "terminal_log.txt"
+TERMINAL_LOGS = f"{pid}terminal_log.txt"
 v = 0
 true_work = 1
 logs = 1
@@ -147,7 +150,7 @@ def main():
     #db.createtable("test")
     db = client["crawler"]  
     
-    pid = os.getpid()
+    
     
     start_point = int(yam["logic"]["start_with"])
     end_point = int(yam["logic"]["end_with"])
@@ -167,8 +170,7 @@ def main():
                 {"content": {"$exists": False}, 
                  "time": {"$exists": False}},       # фильтр: нет content
                 {"$set": {
-                    "time": str(now),
-                    LAST_MOD: str(now)
+                    "time": str(now)
                 }},
                 return_document=True,
             ) 
