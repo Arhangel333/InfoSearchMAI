@@ -280,7 +280,7 @@ def crawl_sitemap(start_url: str,
                 return
             if not db.documents.find_one({"url": page_url}):
                 if truework:
-                    db.documents.insert_one({"url": page_url})
+                    db.documents.insert_one({"url": page_url, "domen": urlparse(page_url).netloc})
             else:
                 myprint(page_url + "\n")
                 out_file.write(page_url + "\n")

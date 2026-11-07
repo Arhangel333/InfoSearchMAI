@@ -1,0 +1,10 @@
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &
+python3 table_counter.py &

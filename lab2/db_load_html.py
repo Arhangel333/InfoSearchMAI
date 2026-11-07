@@ -15,7 +15,7 @@ pid = os.getpid()
 LAST_MOD = "last_modified_ts"
 TERMINAL_LOGS = f"{pid}terminal_log.txt"
 v = 0
-true_work = 1
+true_work = 0
 logs = 1
 terminal_loging = 0
 
@@ -168,11 +168,13 @@ def main():
         while(True):
             
             now = datetime.now()
+            timestamp = int(now.timestamp())
             doc = db.documents.find_one_and_update(
                 {"content": {"$exists": False}, 
                  "time": {"$exists": False}},       # фильтр: нет content
                 {"$set": {
-                    "time": str(now)
+                    "time": str(now),
+                    "Unix_time": timestamp
                 }},
                 return_document=True,
             ) 
