@@ -134,7 +134,22 @@ def scroll_and_collect(
                     with open("part_output.txt", "a") as pf:
                         pf.write(href + "\n")
                         if truework:
-                            db.documents.insert_one({"url": href, "domen": domen})
+                            # 1. Атомарно получаем следующий ID
+                            counter = db.counters.find_one_and_update(
+                                {"_id": "doc_seq"},
+                                {"$inc": {"seq": 1}},
+                                upsert=True,
+                                return_document=True
+                            )
+                            
+                            new_doc_id = counter["seq"]
+                            
+                            # 2. Вставляем документ сразу с doc_id
+                            db.documents.insert_one({
+                                "url": href, 
+                                "domen": domen,
+                                "doc_id": new_doc_id  # Уникальный номер из счетчика
+                            })
                             
                     new_count += 1
                 else:
@@ -280,7 +295,22 @@ def crawl_sitemap(start_url: str,
                 return
             if not db.documents.find_one({"url": page_url}):
                 if truework:
-                    db.documents.insert_one({"url": page_url, "domen": urlparse(page_url).netloc})
+                    # 1. Атомарно получаем следующий ID
+                    counter = db.counters.find_one_and_update(
+                        {"_id": "doc_seq"},
+                        {"$inc": {"seq": 1}},
+                        upsert=True,
+                        return_document=True
+                    )
+                    
+                    new_doc_id = counter["seq"]
+                    
+                    # 2. Вставляем документ сразу с doc_id
+                    db.documents.insert_one({
+                        "url": page_url, 
+                        "domen": urlparse(page_url).netloc,
+                        "doc_id": new_doc_id  # Уникальный номер из счетчика
+                    })
             else:
                 myprint(page_url + "\n")
                 out_file.write(page_url + "\n")
